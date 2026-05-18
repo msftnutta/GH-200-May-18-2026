@@ -36,7 +36,7 @@ jobs:
         run: npm run build:css
 
       - name: Upload built CSS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: css-build
           path: public/css/styles.css
