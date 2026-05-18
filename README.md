@@ -1,3 +1,5 @@
+[![CI / CD](https://github.com/msftnutta/GH-200-May-18-2026/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/msftnutta/GH-200-May-18-2026/actions/workflows/ci-cd.yml)
+
 # GH-200-May-18-2026 — World Clock & Weather
 
 A modern Node.js + Express web app showing local time and current weather (with emoji) for ~20 cities worldwide. Tailwind CSS UI with dark/light theme toggle, Jest unit tests, and CI/CD to Azure App Service via GitHub Actions (OIDC).
