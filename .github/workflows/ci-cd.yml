@@ -36,50 +36,51 @@ jobs:
       - name: Run unit tests
         run: npm test -- --ci
 
-      - name: Prepare deployment artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          npm prune --omit=dev
-          zip -r app.zip . \
-            -x ".git/*" ".github/*" "tests/*" "coverage/*" \
-               "*.md" "postcss.config.js" "tailwind.config.js" \
-               "public/css/input.css" ".env*" ".gitignore"
+      # --- Deployment disabled for now ---
+      # - name: Prepare deployment artifact
+      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      #   run: |
+      #     npm prune --omit=dev
+      #     zip -r app.zip . \
+      #       -x ".git/*" ".github/*" "tests/*" "coverage/*" \
+      #          "*.md" "postcss.config.js" "tailwind.config.js" \
+      #          "public/css/input.css" ".env*" ".gitignore"
+      #
+      # - name: Upload artifact
+      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: webapp
+      #     path: app.zip
+      #     if-no-files-found: error
+      #     retention-days: 7
 
-      - name: Upload artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: webapp
-          path: app.zip
-          if-no-files-found: error
-          retention-days: 7
-
-  deploy:
-    name: Deploy to Azure App Service
-    needs: build-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: webapp
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Deploy to Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          package: app.zip
-
-      - name: Azure logout
-        if: always()
-        run: az logout
+  # deploy:
+  #   name: Deploy to Azure App Service
+  #   needs: build-test
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: production
+  #   steps:
+  #     - name: Download artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: webapp
+  #
+  #     - name: Azure login (OIDC)
+  #       uses: azure/login@v2
+  #       with:
+  #         client-id: ${{ secrets.AZURE_CLIENT_ID }}
+  #         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  #
+  #     - name: Deploy to Web App
+  #       uses: azure/webapps-deploy@v3
+  #       with:
+  #         app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+  #         package: app.zip
+  #
+  #     - name: Azure logout
+  #       if: always()
+  #       run: az logout
