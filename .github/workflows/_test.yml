@@ -1,0 +1,35 @@
+name: _test
+
+# Reusable workflow: install dependencies and run the Jest unit/integration tests.
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version to use
+        type: string
+        required: false
+        default: '20.x'
+      runs-on:
+        description: Runner label(s) as a JSON array string (e.g. '["ubuntu-latest"]')
+        type: string
+        required: false
+        default: '["ubuntu-latest"]'
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest
+        run: npm test -- --ci

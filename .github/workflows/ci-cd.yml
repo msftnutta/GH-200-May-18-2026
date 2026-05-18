@@ -1,148 +1,70 @@
 name: CI / CD
 
-# `on:` declares the events that trigger this workflow.
-# Common event types: push, pull_request, workflow_dispatch (manual run from the UI/API),
-# schedule (cron), release, issues, issue_comment, fork, watch, repository_dispatch, etc.
-# Full list: https://docs.github.com/actions/using-workflows/events-that-trigger-workflows
+# Orchestrator workflow. The actual work lives in reusable workflows
+# (files prefixed with "_") and is wired together here via `needs:`.
+#
+# Trigger reference:
+#   push                 - runs on commits to the listed branches
+#   pull_request         - runs on PRs targeting the listed branches
+#   workflow_dispatch    - lets you trigger manually from the Actions tab
 on:
-  # `push` runs whenever commits are pushed to the listed branches (or tags).
-  # `branches:` accepts a list of branch names or glob patterns. Examples:
-  #   branches: [main]                  # only the main branch
-  #   branches: [main, develop]         # multiple specific branches
-  #   branches: ['feature/*']           # any branch under feature/
-  #   branches: ['**']                  # ALL branches (use this to support every branch)
-  #   branches-ignore: [gh-pages]       # everything EXCEPT these
-  # You can also filter by paths / tags. See:
-  # https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
   push:
-    branches: ['**'] # run on push to ANY branch
-  # `pull_request` runs when a PR is opened/updated/etc. that TARGETS one of these branches.
-  # Use the same glob rules as above; `['**']` means PRs targeting any branch.
+    branches: ['**']
   pull_request:
-    branches: ['**'] # run on PRs targeting ANY branch
-  # `workflow_dispatch` lets you trigger this workflow manually from the Actions tab.
+    branches: ['**']
   workflow_dispatch:
 
+# These permissions cascade to called reusable workflows that need them.
 permissions:
   id-token: write
   contents: read
-  packages: write   # required to push images to ghcr.io (GitHub Packages)
-
-env:
-  NODE_VERSION: '20.x'
-  # Image will be published to ghcr.io/<owner>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  packages: write
 
 jobs:
-  build-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    # using the self hosting runner
-    # runs-on: [self-hosted, surface-laptop]
-    steps:
-      - uses: actions/checkout@v4
+  # 1. Install deps + build CSS
+  build:
+    name: Build
+    uses: ./.github/workflows/_build.yml
+    with:
+      node-version: '20.x'
+      # To use a self-hosted runner instead, uncomment:
+      # runs-on: '["self-hosted", "surface-laptop"]'
 
-      - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+  # 2. Tests (runs in parallel with build for faster feedback)
+  test:
+    name: Test
+    uses: ./.github/workflows/_test.yml
+    with:
+      node-version: '20.x'
 
-      - name: Install dependencies
-        run: npm ci
+  # NOTE: CodeQL static analysis is handled by GitHub's "default setup"
+  # (Settings -> Code security and analysis -> CodeQL). No workflow needed here.
 
-      - name: Build CSS
-        run: npm run build:css
-
-      - name: Run unit tests
-        run: npm test -- --ci
-
-      # --- Deployment disabled for now ---
-      # - name: Prepare deployment artifact
-      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      #   run: |
-      #     npm prune --omit=dev
-      #     zip -r app.zip . \
-      #       -x ".git/*" ".github/*" "tests/*" "coverage/*" \
-      #          "*.md" "postcss.config.js" "tailwind.config.js" \
-      #          "public/css/input.css" ".env*" ".gitignore"
-      #
-      # - name: Upload artifact
-      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: webapp
-      #     path: app.zip
-      #     if-no-files-found: error
-      #     retention-days: 7
-
+  # 3. Build & publish Docker image to GHCR
+  #    Gated by the "publish-approval" Environment, which is configured (in
+  #    repo Settings -> Environments) to require a reviewer. The job waits
+  #    here until an approver clicks "Approve and deploy" in the Actions UI.
   publish-image:
-    name: Publish Docker image to GHCR
-    needs: build-test
-    # Only publish on pushes to main (not on PRs or other branches)
+    name: Publish image
+    needs: [build, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
+    uses: ./.github/workflows/_publish-image.yml
+    with:
+      image-name: ${{ github.repository }}
+      environment: publish-approval
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Compute lowercase image name
-        id: img
-        run: echo "name=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ steps.img.outputs.name }}:latest
-            ghcr.io/${{ steps.img.outputs.name }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # deploy:
-  #   name: Deploy to Azure App Service
-  #   needs: build-test
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   runs-on: ubuntu-latest
-  #   environment:
-  #     name: production
-  #   steps:
-  #     - name: Download artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: webapp
-  #
-  #     - name: Azure login (OIDC)
-  #       uses: azure/login@v2
-  #       with:
-  #         client-id: ${{ secrets.AZURE_CLIENT_ID }}
-  #         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  #
-  #     - name: Deploy to Web App
-  #       uses: azure/webapps-deploy@v3
-  #       with:
-  #         app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-  #         package: app.zip
-  #
-  #     - name: Azure logout
-  #       if: always()
-  #       run: az logout
+  # 4. Deploy to Azure App Service
+  #    Gated by the "production" Environment (also configured with required
+  #    reviewers). A second approval is required here before deploy runs.
+  deploy:
+    name: Deploy
+    needs: [publish-image]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: production
+      # webapp-name: ${{ vars.AZURE_WEBAPP_NAME }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
