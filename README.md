@@ -221,18 +221,22 @@ Real failures encountered live (and fixed):
 
 ## 🧪 6. Labs & Learning Resources
 
-### Core labs
-- [Create and run a basic GitHub Actions workflow](https://learn.microsoft.com/en-us/training/modules/github-actions-automate-tasks/3-exercise-create-container-action)
-- [Create the CI workflow on GitHub](https://learn.microsoft.com/en-us/training/modules/github-actions-ci/3-exercise-ci-workflow-github)
+### GH-200 Exercises
 
-### Additional labs
-- [Deploy web app to Azure](https://learn.microsoft.com/en-us/training/modules/github-actions-cd/3-create-workflow-deploy-azure)
-- [Publish to GitHub Packages](https://learn.microsoft.com/en-us/training/modules/github-actions-packages/3-exercise-github-packages-docker-registry)
+1. [Create and run a basic GitHub Actions workflow](https://learn.microsoft.com/en-us/training/modules/github-actions-automate-tasks/3-exercise-create-container-action)
+2. [Create the CI workflow on GitHub](https://learn.microsoft.com/en-us/training/modules/github-actions-ci/3-exercise-ci-workflow-github)
+3. [Create a workflow that deploys a web app to Azure](https://learn.microsoft.com/en-us/training/modules/github-actions-cd/3-create-workflow-deploy-azure)
+4. [Using GitHub Script in GitHub Actions](https://learn.microsoft.com/en-us/training/modules/automate-github-using-github-script/3-use-github-script)
+5. [Publish to a GitHub Packages registry](https://learn.microsoft.com/en-us/training/modules/github-actions-packages/3-exercise-github-packages-docker-registry)
+6. [Create and publish custom GitHub Actions](https://learn.microsoft.com/en-us/training/modules/create-custom-github-actions/)
+7. [Use a repository secret in a GitHub Actions workflow](https://learn.microsoft.com/en-us/training/modules/manage-github-actions-enterprise/exercise)
 
 ### Repo reference
+
 - [GH-200 training repository](https://github.com/msftnutta/GH-200-May-18-2026)
 
 ### Extra learning
+
 - [Git version control (Azure Animations)](https://azureanimations.github.io/github/git-version-control)
 - [GitHub Actions certification page](https://learn.microsoft.com/en-us/credentials/certifications/github-actions/?practice-assessment-type=certification)
 
