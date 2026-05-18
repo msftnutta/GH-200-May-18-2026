@@ -1,23 +1,44 @@
 name: CI / CD
 
+# `on:` declares the events that trigger this workflow.
+# Common event types: push, pull_request, workflow_dispatch (manual run from the UI/API),
+# schedule (cron), release, issues, issue_comment, fork, watch, repository_dispatch, etc.
+# Full list: https://docs.github.com/actions/using-workflows/events-that-trigger-workflows
 on:
+  # `push` runs whenever commits are pushed to the listed branches (or tags).
+  # `branches:` accepts a list of branch names or glob patterns. Examples:
+  #   branches: [main]                  # only the main branch
+  #   branches: [main, develop]         # multiple specific branches
+  #   branches: ['feature/*']           # any branch under feature/
+  #   branches: ['**']                  # ALL branches (use this to support every branch)
+  #   branches-ignore: [gh-pages]       # everything EXCEPT these
+  # You can also filter by paths / tags. See:
+  # https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
   push:
-    branches: [main]
+    branches: ['**'] # run on push to ANY branch
+  # `pull_request` runs when a PR is opened/updated/etc. that TARGETS one of these branches.
+  # Use the same glob rules as above; `['**']` means PRs targeting any branch.
   pull_request:
-    branches: [main]
+    branches: ['**'] # run on PRs targeting ANY branch
+  # `workflow_dispatch` lets you trigger this workflow manually from the Actions tab.
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
+  packages: write   # required to push images to ghcr.io (GitHub Packages)
 
 env:
   NODE_VERSION: '20.x'
+  # Image will be published to ghcr.io/<owner>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-test:
     name: Build & Test
-    runs-on: [self-hosted, surface-laptop]
+    runs-on: ubuntu-latest
+    # using the self hosting runner
+    # runs-on: [self-hosted, surface-laptop]
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +75,47 @@ jobs:
       #     path: app.zip
       #     if-no-files-found: error
       #     retention-days: 7
+
+  publish-image:
+    name: Publish Docker image to GHCR
+    needs: build-test
+    # Only publish on pushes to main (not on PRs or other branches)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute lowercase image name
+        id: img
+        run: echo "name=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ steps.img.outputs.name }}:latest
+            ghcr.io/${{ steps.img.outputs.name }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # deploy:
   #   name: Deploy to Azure App Service
