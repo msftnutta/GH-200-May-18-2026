@@ -1,5 +1,5 @@
 # --- Build stage: install all deps and build CSS ---
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -10,7 +10,7 @@ RUN npm run build:css \
     && npm prune --omit=dev
 
 # --- Runtime stage: minimal image with only production deps ---
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
