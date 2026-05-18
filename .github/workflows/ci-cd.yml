@@ -19,8 +19,6 @@ permissions:
   id-token: write
   contents: read
   packages: write
-  actions: read            # required by CodeQL when called from a reusable workflow
-  security-events: write   # so CodeQL can upload SARIF results
 
 jobs:
   # 1. Install deps + build CSS
@@ -39,25 +37,23 @@ jobs:
     with:
       node-version: '20.x'
 
-  # 3. Static security analysis (runs in parallel with build/test)
-  codeql:
-    name: CodeQL
-    uses: ./.github/workflows/_codeql.yml
+  # NOTE: CodeQL static analysis is handled by GitHub's "default setup"
+  # (Settings -> Code security and analysis -> CodeQL). No workflow needed here.
 
-  # 4. Build & publish Docker image to GHCR
+  # 3. Build & publish Docker image to GHCR
   #    Gated by the "publish-approval" Environment, which is configured (in
   #    repo Settings -> Environments) to require a reviewer. The job waits
   #    here until an approver clicks "Approve and deploy" in the Actions UI.
   publish-image:
     name: Publish image
-    needs: [build, test, codeql]
+    needs: [build, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/_publish-image.yml
     with:
       image-name: ${{ github.repository }}
       environment: publish-approval
 
-  # 5. Deploy to Azure App Service
+  # 4. Deploy to Azure App Service
   #    Gated by the "production" Environment (also configured with required
   #    reviewers). A second approval is required here before deploy runs.
   deploy:
