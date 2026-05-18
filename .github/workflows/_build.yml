@@ -1,0 +1,44 @@
+name: _build
+
+# Reusable workflow: install dependencies and build the Tailwind CSS bundle.
+# Uploads the built CSS as an artifact so downstream jobs can reuse it if needed.
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version to use
+        type: string
+        required: false
+        default: '20.x'
+      runs-on:
+        description: Runner label(s) as a JSON array string (e.g. '["ubuntu-latest"]')
+        type: string
+        required: false
+        default: '["ubuntu-latest"]'
+
+jobs:
+  build:
+    name: Install & Build
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Upload built CSS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: css-build
+          path: public/css/styles.css
+          if-no-files-found: error
+          retention-days: 7

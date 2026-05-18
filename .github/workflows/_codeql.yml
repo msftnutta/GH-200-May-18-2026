@@ -1,0 +1,52 @@
+name: _codeql
+
+# Reusable workflow: CodeQL static analysis for JavaScript/TypeScript.
+# Uploads SARIF results to the repo's Security tab (Code scanning).
+#
+# Requires the caller to grant: `security-events: write` (and `actions: read`,
+# `contents: read`). Those are set in ci-cd.yml at the top level.
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: Comma-separated CodeQL languages to analyze (e.g. "javascript-typescript")
+        type: string
+        required: false
+        default: 'javascript-typescript'
+      runs-on:
+        description: Runner label(s) as a JSON array string
+        type: string
+        required: false
+        default: '["ubuntu-latest"]'
+
+jobs:
+  analyze:
+    name: CodeQL Analyze
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(format('["{0}"]', inputs.languages)) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Use the standard query suite. Switch to "security-extended" or
+          # "security-and-quality" for deeper (slower) analysis.
+          queries: security-and-quality
+
+      # Autobuild handles JS/TS without a manual build step.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -1,0 +1,71 @@
+# Dependabot configuration
+#
+# This is NOT a workflow — Dependabot is a GitHub-managed service that reads
+# this file directly from `.github/dependabot.yml`. It will:
+#   - Check the configured ecosystems on the schedule below
+#   - Open PRs for outdated dependencies (and security advisories)
+#
+# To also enable Dependabot SECURITY UPDATES (auto PRs for vulnerabilities),
+# turn it on in: repo Settings -> Code security and analysis -> Dependabot.
+#
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # 1. npm (this app)
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Singapore
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    labels:
+      - dependencies
+      - npm
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: scope
+    groups:
+      # One PR per week for safe minor/patch bumps instead of N noisy PRs
+      minor-and-patch:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  # 2. GitHub Actions used in our workflows
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Singapore
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: 'ci(deps)'
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  # 3. Docker base images referenced in our Dockerfile
+  - package-ecosystem: docker
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Singapore
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: 'chore(docker)'
+      include: scope
